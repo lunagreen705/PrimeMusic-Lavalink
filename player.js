@@ -339,7 +339,7 @@ async function showQueue(channel) {
     }).catch(console.error);
 
     // Create a collector to handle button interactions
-    const filter = (interaction) => interaction.isButton() && interaction.user.id === channel.guild.ownerId;
+    const filter = (interaction) => interaction.isButton();
     const collector = message.createMessageComponentCollector({ filter, time: 60000 });
 
     collector.on('collect', async (interaction) => {
