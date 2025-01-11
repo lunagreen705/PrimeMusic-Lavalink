@@ -186,24 +186,33 @@ async function handleInteraction(i, player, channel) {
         case 'showQueue':
             showQueue(channel);
             break;
+            
 case 'clearQueue':
-    if (!queueNames || queueNames.length === 0) {
-        await sendEmbed(channel, "⚠️ No active queue.");
+    if (!player || !player.queue || player.queue.length === 0) {
+        await sendEmbed(channel, "⚠️ No active queue or player.");
         return;
     }
 
-    // 取得當前播放的歌曲（假設 queueNames[0] 是正在播放的歌曲）
-    const nowPlaying = queueNames[0];
+    let nowPlaying;
+    if (player.queue.length === 1) {
+        // 如果佇列中只有一首歌，保留這首歌
+        nowPlaying = player.queue[0];
+        player.queue.clear();  // 清空佇列
+        queueNames = [nowPlaying]; // 保證只保留正在播放的歌曲
+    } else {
+        // 如果佇列中有多首歌，只清空非正在播放的部分
+        nowPlaying = player.queue[0]; // 保留正在播放的歌曲
+        player.queue.clear(); // 清空佇列
+        player.queue.add(nowPlaying); // 重新加入正在播放的歌曲
+        queueNames = [nowPlaying]; // 保持同步
+    }
 
-    // 只保留正在播放的歌曲，清空其他歌曲
-    queueNames = [nowPlaying];
-
+    // 發送清空成功的訊息
     await sendEmbed(
         channel,
         `🗑️ **Queue has been cleared!**\n🎵 **Now Playing:** ${formatTrack(nowPlaying)}`
     );
     break;
-
 
         case 'stopTrack':
             player.stop();
