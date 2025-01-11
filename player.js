@@ -344,11 +344,14 @@ if (!message) {
         row.components[1].setDisabled(currentPage === queueChunks.length - 1);
 
         // Edit the message to show the updated queue and buttons
-        await interaction.update({
+         await interaction.update({
             embeds: [nowPlayingEmbed, queueEmbed],
             components: [row]
-        }).catch(console.error);
-    });
+        });
+    } catch (err) {
+        console.error("Error updating the interaction:", err);  // 捕獲錯誤
+    }
+});
 
     // Listen to the "trackStart" event and update the "Now Playing" section
     player.on('trackStart', async (track) => {
