@@ -261,15 +261,14 @@ function disableLoop(player, channel) {
 
 async function showQueue(channel) {
     if (queueNames.length === 0) {
-        await channel.send("The queue is empty.");
+        sendEmbed(channel, "The queue is empty.");
         return;
     }
 
-    const nowPlayingEmbed = new EmbedBuilder()
-        .setColor(config.embedColor)
-        .setDescription(`🎵 **Now Playing:**\n${formatTrack(queueNames[0])}`);
-
+    const nowPlaying = `🎵 **Now Playing:**\n${formatTrack(queueNames[0])}`;
     const queueChunks = [];
+
+    // Split the queue into chunks of 10 songs per embed
     for (let i = 1; i < queueNames.length; i += 10) {
         const chunk = queueNames.slice(i, i + 10)
             .map((song, index) => `${i + index}. ${formatTrack(song)}`)
@@ -277,56 +276,78 @@ async function showQueue(channel) {
         queueChunks.push(chunk);
     }
 
+    // If there is only one page, directly show the queue
+    if (queueChunks.length === 0) {
+        channel.send({
+            embeds: [new EmbedBuilder().setColor(config.embedColor).setDescription(nowPlaying)]
+        }).catch(console.error);
+        return;
+    }
+
     let currentPage = 0;
 
-    const queueEmbed = new EmbedBuilder()
+    // Send the "Now Playing" message first
+    const nowPlayingEmbed = new EmbedBuilder()
         .setColor(config.embedColor)
-        .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage] || 'No songs in the queue.'}`);
+        .setDescription(nowPlaying);
+    
+    let queueEmbed = new EmbedBuilder()
+        .setColor(config.embedColor)
+        .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('previous')
             .setLabel('⬅️ Previous')
             .setStyle(ButtonStyle.Primary)
-            .setDisabled(true), // 初始禁用
+            .setDisabled(currentPage === 0), // Disable if on the first page
         new ButtonBuilder()
             .setCustomId('next')
             .setLabel('➡️ Next')
             .setStyle(ButtonStyle.Primary)
-            .setDisabled(queueChunks.length <= 1) // 如果只有一頁，禁用按鈕
+            .setDisabled(currentPage === queueChunks.length - 1) // Disable if on the last page
     );
 
-    const nowPlayingMessage = await channel.send({ embeds: [nowPlayingEmbed] });
-    const queueMessage = await channel.send({ embeds: [queueEmbed], components: [row] });
+    const message = await channel.send({
+        embeds: [nowPlayingEmbed, queueEmbed],
+        components: [row]
+    }).catch(console.error);
 
-    const filter = (interaction) => interaction.isButton();
-    const collector = queueMessage.createMessageComponentCollector({ filter, time: 60000 });
+    // Create a collector to handle button interactions
+    const filter = (interaction) => interaction.isButton() && interaction.user.id === channel.guild.ownerId;
+    const collector = message.createMessageComponentCollector({ filter, time: 60000 });
 
     collector.on('collect', async (interaction) => {
-        try {
-            if (interaction.customId === 'previous' && currentPage > 0) {
+        if (interaction.customId === 'previous') {
+            // Go to previous page
+            if (currentPage > 0) {
                 currentPage--;
-            } else if (interaction.customId === 'next' && currentPage < queueChunks.length - 1) {
+            }
+        } else if (interaction.customId === 'next') {
+            // Go to next page
+            if (currentPage < queueChunks.length - 1) {
                 currentPage++;
             }
-
-            const updatedQueueEmbed = new EmbedBuilder()
-                .setColor(config.embedColor)
-                .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
-
-            row.components[0].setDisabled(currentPage === 0); // 禁用上一頁按鈕
-            row.components[1].setDisabled(currentPage === queueChunks.length - 1); // 禁用下一頁按鈕
-
-            await interaction.update({
-                embeds: [updatedQueueEmbed],
-                components: [row]
-            });
-        } catch (err) {
-            console.error("Error updating queue embed:", err);
         }
-    });
 
-    collector.on('end', async () => {
+        // Update the queue embed with the new page
+        queueEmbed = new EmbedBuilder()
+            .setColor(config.embedColor)
+            .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
+
+        // Update the button states (disable previous on the first page, next on the last page)
+        row.components[0].setDisabled(currentPage === 0); // Disable previous button if on first page
+        row.components[1].setDisabled(currentPage === queueChunks.length - 1); // Disable next button if on last page
+
+        // Edit the message to show the updated queue and buttons
+        await interaction.update({
+            embeds: [nowPlayingEmbed, queueEmbed],
+            components: [row]
+        }).catch(console.error);
+    });
+}
+
+collector.on('end', async () => {
         row.components.forEach((button) => button.setDisabled(true));
         await queueMessage.edit({ components: [row] }).catch(console.error);
     });
@@ -352,9 +373,15 @@ async function showQueue(channel) {
     });
 }
 
-// 格式化歌曲名稱的幫助函數
-function formatTrack(track) {
-    return `**${track}**`; // 替換為你的格式化邏輯
+function createActionRow1(disabled) {
+    return new ActionRowBuilder()
+        .addComponents(
+            new ButtonBuilder().setCustomId("loopToggle").setEmoji('🔁').setStyle(ButtonStyle.Secondary).setDisabled(disabled),
+            new ButtonBuilder().setCustomId("disableLoop").setEmoji('❌').setStyle(ButtonStyle.Secondary).setDisabled(disabled),
+            new ButtonBuilder().setCustomId("skipTrack").setEmoji('⏭️').setStyle(ButtonStyle.Secondary).setDisabled(disabled),
+            new ButtonBuilder().setCustomId("showQueue").setEmoji('📜').setStyle(ButtonStyle.Secondary).setDisabled(disabled),
+            new ButtonBuilder().setCustomId("clearQueue").setEmoji('🗑️').setStyle(ButtonStyle.Secondary).setDisabled(disabled)
+        );
 }
 
 function createActionRow2(disabled) {
