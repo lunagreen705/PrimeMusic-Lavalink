@@ -279,17 +279,18 @@ function disableLoop(player, channel) {
 }
 
 async function showQueue(channel) {
-    if (queueNames.length === 0) {
+    if (!player || !player.queue || player.queue.length === 0) {
         sendEmbed(channel, "The queue is empty.");
         return;
     }
 
-    const nowPlaying = `🎵 **Now Playing:**\n${formatTrack(queueNames[0])}`;
+    // 取得正在播放的歌曲
+    const nowPlaying = `🎵 **Now Playing:**\n${formatTrack(player.queue[0])}`;
     const queueChunks = [];
 
     // Split the queue into chunks of 10 songs per embed
-    for (let i = 1; i < queueNames.length; i += 10) {
-        const chunk = queueNames.slice(i, i + 10)
+    for (let i = 1; i < player.queue.length; i += 10) {
+        const chunk = player.queue.slice(i, i + 10)
             .map((song, index) => `${i + index}. ${formatTrack(song)}`)
             .join('\n');
         queueChunks.push(chunk);
@@ -309,7 +310,7 @@ async function showQueue(channel) {
     const nowPlayingEmbed = new EmbedBuilder()
         .setColor(config.embedColor)
         .setDescription(nowPlaying);
-    
+
     let queueEmbed = new EmbedBuilder()
         .setColor(config.embedColor)
         .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
