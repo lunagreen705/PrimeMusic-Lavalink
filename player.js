@@ -259,16 +259,25 @@ function disableLoop(player, channel) {
     sendEmbed(channel, "❌ **Loop is disabled!**");
 }
 
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+
+// 假設這是你的播放器和其他依賴對象
+const player = getPlayer(); // 替換為你的播放器實例
+const config = { embedColor: '#00ff00' }; // 嵌入顏色配置
+const queueNames = ['Song 1', 'Song 2', 'Song 3']; // 假設的隊列數據
+const channel = getTextChannel(); // 替換為目標頻道的實例
+
 async function showQueue(channel) {
     if (queueNames.length === 0) {
-        sendEmbed(channel, "The queue is empty.");
+        await channel.send("The queue is empty.");
         return;
     }
 
-    const nowPlaying = `🎵 **Now Playing:**\n${formatTrack(queueNames[0])}`;
-    const queueChunks = [];
+    const nowPlayingEmbed = new EmbedBuilder()
+        .setColor(config.embedColor)
+        .setDescription(`🎵 **Now Playing:**\n${formatTrack(queueNames[0])}`);
 
-    // Split the queue into chunks of 10 songs per embed
+    const queueChunks = [];
     for (let i = 1; i < queueNames.length; i += 10) {
         const chunk = queueNames.slice(i, i + 10)
             .map((song, index) => `${i + index}. ${formatTrack(song)}`)
@@ -276,86 +285,84 @@ async function showQueue(channel) {
         queueChunks.push(chunk);
     }
 
-    // If there is only one page, directly show the queue
-    if (queueChunks.length === 0) {
-        channel.send({
-            embeds: [new EmbedBuilder().setColor(config.embedColor).setDescription(nowPlaying)]
-        }).catch(console.error);
-        return;
-    }
-
     let currentPage = 0;
 
-    // Send the "Now Playing" message first
-    const nowPlayingEmbed = new EmbedBuilder()
+    const queueEmbed = new EmbedBuilder()
         .setColor(config.embedColor)
-        .setDescription(nowPlaying);
-    
-    let queueEmbed = new EmbedBuilder()
-        .setColor(config.embedColor)
-        .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
+        .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage] || 'No songs in the queue.'}`);
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('previous')
             .setLabel('⬅️ Previous')
             .setStyle(ButtonStyle.Primary)
-            .setDisabled(currentPage === 0), // Disable if on the first page
+            .setDisabled(true), // 初始禁用
         new ButtonBuilder()
             .setCustomId('next')
             .setLabel('➡️ Next')
             .setStyle(ButtonStyle.Primary)
-            .setDisabled(currentPage === queueChunks.length - 1) // Disable if on the last page
+            .setDisabled(queueChunks.length <= 1) // 如果只有一頁，禁用按鈕
     );
 
-    const message = await channel.send({
-        embeds: [nowPlayingEmbed, queueEmbed],
-        components: [row]
-    }).catch(console.error);
+    const nowPlayingMessage = await channel.send({ embeds: [nowPlayingEmbed] });
+    const queueMessage = await channel.send({ embeds: [queueEmbed], components: [row] });
 
-    // Create a collector to handle button interactions
-    const filter = (interaction) => interaction.isButton() && interaction.user.id === channel.guild.ownerId;
-    const collector = message.createMessageComponentCollector({ filter, time: 60000 });
+    const filter = (interaction) => interaction.isButton();
+    const collector = queueMessage.createMessageComponentCollector({ filter, time: 60000 });
 
     collector.on('collect', async (interaction) => {
-        if (interaction.customId === 'previous') {
-            // Go to previous page
-            if (currentPage > 0) {
+        try {
+            if (interaction.customId === 'previous' && currentPage > 0) {
                 currentPage--;
-            }
-        } else if (interaction.customId === 'next') {
-            // Go to next page
-            if (currentPage < queueChunks.length - 1) {
+            } else if (interaction.customId === 'next' && currentPage < queueChunks.length - 1) {
                 currentPage++;
             }
+
+            const updatedQueueEmbed = new EmbedBuilder()
+                .setColor(config.embedColor)
+                .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
+
+            row.components[0].setDisabled(currentPage === 0); // 禁用上一頁按鈕
+            row.components[1].setDisabled(currentPage === queueChunks.length - 1); // 禁用下一頁按鈕
+
+            await interaction.update({
+                embeds: [updatedQueueEmbed],
+                components: [row]
+            });
+        } catch (err) {
+            console.error("Error updating queue embed:", err);
         }
+    });
 
-        // Update the queue embed with the new page
-        queueEmbed = new EmbedBuilder()
-            .setColor(config.embedColor)
-            .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
+    collector.on('end', async () => {
+        row.components.forEach((button) => button.setDisabled(true));
+        await queueMessage.edit({ components: [row] }).catch(console.error);
+    });
 
-        // Update the button states (disable previous on the first page, next on the last page)
-        row.components[0].setDisabled(currentPage === 0); // Disable previous button if on first page
-        row.components[1].setDisabled(currentPage === queueChunks.length - 1); // Disable next button if on last page
+    // 監聽播放器事件，實時更新 Now Playing
+    player.on('trackStart', async (track) => {
+        try {
+            const updatedNowPlaying = `🎵 **Now Playing:**\n${formatTrack(track)}`;
+            nowPlayingEmbed.setDescription(updatedNowPlaying);
+            await nowPlayingMessage.edit({ embeds: [nowPlayingEmbed] });
+        } catch (err) {
+            console.error("Error updating 'Now Playing':", err);
+        }
+    });
 
-        // Edit the message to show the updated queue and buttons
-        await interaction.update({
-            embeds: [nowPlayingEmbed, queueEmbed],
-            components: [row]
-        }).catch(console.error);
+    player.on('queueEnd', async () => {
+        try {
+            nowPlayingEmbed.setDescription("🎵 **Now Playing:**\nQueue has ended.");
+            await nowPlayingMessage.edit({ embeds: [nowPlayingEmbed] });
+        } catch (err) {
+            console.error("Error updating 'Now Playing' at queue end:", err);
+        }
     });
 }
 
-function createActionRow1(disabled) {
-    return new ActionRowBuilder()
-        .addComponents(
-            new ButtonBuilder().setCustomId("loopToggle").setEmoji('🔁').setStyle(ButtonStyle.Secondary).setDisabled(disabled),
-            new ButtonBuilder().setCustomId("disableLoop").setEmoji('❌').setStyle(ButtonStyle.Secondary).setDisabled(disabled),
-            new ButtonBuilder().setCustomId("skipTrack").setEmoji('⏭️').setStyle(ButtonStyle.Secondary).setDisabled(disabled),
-            new ButtonBuilder().setCustomId("showQueue").setEmoji('📜').setStyle(ButtonStyle.Secondary).setDisabled(disabled),
-            new ButtonBuilder().setCustomId("clearQueue").setEmoji('🗑️').setStyle(ButtonStyle.Secondary).setDisabled(disabled)
-        );
+// 格式化歌曲名稱的幫助函數
+function formatTrack(track) {
+    return `**${track}**`; // 替換為你的格式化邏輯
 }
 
 function createActionRow2(disabled) {
