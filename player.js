@@ -193,19 +193,16 @@ case 'clearQueue':
         return;
     }
 
-    let nowPlaying;
-    if (player.queue.length === 1) {
-        // 如果佇列中只有一首歌，保留這首歌
-        nowPlaying = player.queue[0];
-        player.queue.clear();  // 清空佇列
-        queueNames = [nowPlaying]; // 保證只保留正在播放的歌曲
-    } else {
-        // 如果佇列中有多首歌，只清空非正在播放的部分
-        nowPlaying = player.queue[0]; // 保留正在播放的歌曲
-        player.queue.clear(); // 清空佇列
-        player.queue.add(nowPlaying); // 重新加入正在播放的歌曲
-        queueNames = [nowPlaying]; // 保持同步
+    // 保留正在播放的歌曲
+    let nowPlaying = player.queue[0]; 
+
+    // 如果佇列中有多首歌，清空非正在播放的部分
+    if (player.queue.length > 1) {
+        player.queue.remove(1, player.queue.length - 1); // 清除非正在播放的歌曲
     }
+
+    // 重新同步 queueNames
+    queueNames = [nowPlaying]; // 這裡是重新賦值，保證只保留正在播放的歌曲
 
     // 發送清空成功的訊息
     await sendEmbed(
