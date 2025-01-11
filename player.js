@@ -305,27 +305,34 @@ async function showQueue(channel, player) {
             .setDisabled(currentPage === queueChunks.length - 1) // Disable if on the last page
     );
 
-    const message = await channel.send({
-        embeds: [nowPlayingEmbed, queueEmbed],
-        components: [row]
-    }).catch(console.error);
+   const message = await channel.send({
+    embeds: [nowPlayingEmbed, queueEmbed],
+    components: [row]
+}).catch(err => {
+    console.error("Error sending the message:", err);
+});
+
+if (!message) {
+    console.log("Message was not sent successfully");
+    return;
+}
 
     // Create a collector to handle button interactions
     const filter = (interaction) => interaction.isButton() && interaction.user.id === channel.guild.ownerId;
     const collector = message.createMessageComponentCollector({ filter, time: 60000 });
 
-    collector.on('collect', async (interaction) => {
-        if (interaction.customId === 'previous') {
-            // Go to previous page
-            if (currentPage > 0) {
-                currentPage--;
-            }
-        } else if (interaction.customId === 'next') {
-            // Go to next page
-            if (currentPage < queueChunks.length - 1) {
-                currentPage++;
-            }
-        }
+   collector.on('collect', async (interaction) => {
+    try {
+        // 更新頁碼等操作
+        // 更新嵌入消息
+        await interaction.update({
+            embeds: [nowPlayingEmbed, queueEmbed],
+            components: [row]
+        });
+    } catch (err) {
+        console.error("Error updating the interaction:", err);
+    }
+});
 
         // Update the queue embed with the new page
         queueEmbed = new EmbedBuilder()
