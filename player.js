@@ -259,7 +259,7 @@ function disableLoop(player, channel) {
     sendEmbed(channel, "❌ **Loop is disabled!**");
 }
 
-function showQueue(channel) {
+async function showQueue(channel) {
     if (queueNames.length === 0) {
         sendEmbed(channel, "The queue is empty.");
         return;
@@ -276,20 +276,76 @@ function showQueue(channel) {
         queueChunks.push(chunk);
     }
 
+    // If there is only one page, directly show the queue
+    if (queueChunks.length === 0) {
+        channel.send({
+            embeds: [new EmbedBuilder().setColor(config.embedColor).setDescription(nowPlaying)]
+        }).catch(console.error);
+        return;
+    }
+
+    let currentPage = 0;
+
     // Send the "Now Playing" message first
-    channel.send({
-        embeds: [new EmbedBuilder().setColor(config.embedColor).setDescription(nowPlaying)]
+    const nowPlayingEmbed = new EmbedBuilder()
+        .setColor(config.embedColor)
+        .setDescription(nowPlaying);
+    
+    let queueEmbed = new EmbedBuilder()
+        .setColor(config.embedColor)
+        .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
+
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('previous')
+            .setLabel('⬅️ Previous')
+            .setStyle(ButtonStyle.Primary)
+            .setDisabled(currentPage === 0), // Disable if on the first page
+        new ButtonBuilder()
+            .setCustomId('next')
+            .setLabel('➡️ Next')
+            .setStyle(ButtonStyle.Primary)
+            .setDisabled(currentPage === queueChunks.length - 1) // Disable if on the last page
+    );
+
+    const message = await channel.send({
+        embeds: [nowPlayingEmbed, queueEmbed],
+        components: [row]
     }).catch(console.error);
 
-    // Send each chunk as a separate embed
-    queueChunks.forEach(async (chunk) => {
-        const embed = new EmbedBuilder()
+    // Create a collector to handle button interactions
+    const filter = (interaction) => interaction.isButton() && interaction.user.id === channel.guild.ownerId;
+    const collector = message.createMessageComponentCollector({ filter, time: 60000 });
+
+    collector.on('collect', async (interaction) => {
+        if (interaction.customId === 'previous') {
+            // Go to previous page
+            if (currentPage > 0) {
+                currentPage--;
+            }
+        } else if (interaction.customId === 'next') {
+            // Go to next page
+            if (currentPage < queueChunks.length - 1) {
+                currentPage++;
+            }
+        }
+
+        // Update the queue embed with the new page
+        queueEmbed = new EmbedBuilder()
             .setColor(config.embedColor)
-            .setDescription(`📜 **Queue:**\n${chunk}`);
-        await channel.send({ embeds: [embed] }).catch(console.error);
+            .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
+
+        // Update the button states (disable previous on the first page, next on the last page)
+        row.components[0].setDisabled(currentPage === 0); // Disable previous button if on first page
+        row.components[1].setDisabled(currentPage === queueChunks.length - 1); // Disable next button if on last page
+
+        // Edit the message to show the updated queue and buttons
+        await interaction.update({
+            embeds: [nowPlayingEmbed, queueEmbed],
+            components: [row]
+        }).catch(console.error);
     });
 }
-
 
 function createActionRow1(disabled) {
     return new ActionRowBuilder()
