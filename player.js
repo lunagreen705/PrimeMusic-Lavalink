@@ -274,6 +274,8 @@ function disableLoop(player, channel) {
     sendEmbed(channel, "❌ **Loop is disabled!**");
 }
 
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+
 async function showQueue(channel) {
     if (queueNames.length === 0) {
         sendEmbed(channel, "The queue is empty.");
@@ -310,27 +312,35 @@ async function showQueue(channel) {
         .setColor(config.embedColor)
         .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
 
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('previous')
+            .setLabel('⬅️ Previous')
+            .setStyle(ButtonStyle.Primary)
+            .setDisabled(currentPage === 0), // Disable if on the first page
+        new ButtonBuilder()
+            .setCustomId('next')
+            .setLabel('➡️ Next')
+            .setStyle(ButtonStyle.Primary)
+            .setDisabled(currentPage === queueChunks.length - 1) // Disable if on the last page
+    );
+
     const message = await channel.send({
-        embeds: [nowPlayingEmbed, queueEmbed]
+        embeds: [nowPlayingEmbed, queueEmbed],
+        components: [row]
     }).catch(console.error);
 
-    // Add reaction buttons for pagination
-    await message.react('⬅️');  // Previous page
-    await message.react('➡️');  // Next page
+    // Create a collector to handle button interactions
+    const filter = (interaction) => interaction.isButton() && interaction.user.id === channel.guild.ownerId;
+    const collector = message.createMessageComponentCollector({ filter, time: 60000 });
 
-    const filter = (reaction, user) => {
-        return ['⬅️', '➡️'].includes(reaction.emoji.name) && !user.bot;
-    };
-
-    const collector = message.createReactionCollector({ filter, time: 60000 });
-
-    collector.on('collect', async (reaction, user) => {
-        if (reaction.emoji.name === '⬅️') {
+    collector.on('collect', async (interaction) => {
+        if (interaction.customId === 'previous') {
             // Go to previous page
             if (currentPage > 0) {
                 currentPage--;
             }
-        } else if (reaction.emoji.name === '➡️') {
+        } else if (interaction.customId === 'next') {
             // Go to next page
             if (currentPage < queueChunks.length - 1) {
                 currentPage++;
@@ -342,10 +352,15 @@ async function showQueue(channel) {
             .setColor(config.embedColor)
             .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
 
-        await message.edit({ embeds: [nowPlayingEmbed, queueEmbed] }).catch(console.error);
+        // Update the button states (disable previous on the first page, next on the last page)
+        row.components[0].setDisabled(currentPage === 0); // Disable previous button if on first page
+        row.components[1].setDisabled(currentPage === queueChunks.length - 1); // Disable next button if on last page
 
-        // Remove the user's reaction to prevent multiple reactions from the same user
-        await reaction.users.remove(user).catch(console.error);
+        // Edit the message to show the updated queue and buttons
+        await interaction.update({
+            embeds: [nowPlayingEmbed, queueEmbed],
+            components: [row]
+        }).catch(console.error);
     });
 }
 
