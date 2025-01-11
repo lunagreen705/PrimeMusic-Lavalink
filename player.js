@@ -279,7 +279,7 @@ function disableLoop(player, channel) {
 }
 
 async function showQueue(channel) {
-    if (!player || !player.queue || player.queue.length === 0) {
+    if (!player.queue || player.queue.length === 0) {
         sendEmbed(channel, "The queue is empty.");
         return;
     }
