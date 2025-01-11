@@ -278,9 +278,9 @@ function disableLoop(player, channel) {
     sendEmbed(channel, "❌ **Loop is disabled!**");
 }
 
-async function showQueue(channel) {
+async function showQueue(channel, player) {
     if (!player.queue || player.queue.length === 0) {
-        sendEmbed(channel, "The queue is empty.");
+        sendEmbed(channel, "⚠️ No active queue");
         return;
     }
 
