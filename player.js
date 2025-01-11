@@ -260,34 +260,78 @@ function disableLoop(player, channel) {
 }
 
 function showQueue(channel) {
-    if (queueNames.length === 0) {
+    let currentPage = 0;  // 用來記錄當前頁數
+    let queueChunks = [];  // 存儲分頁佇列
+
+    // 確保 player.queue 已經有歌曲
+    if (!player || !player.queue || player.queue.length === 0) {
         sendEmbed(channel, "The queue is empty.");
         return;
     }
 
-    const nowPlaying = `🎵 **Now Playing:**\n${formatTrack(queueNames[0])}`;
-    const queueChunks = [];
-
-    // Split the queue into chunks of 10 songs per embed
-    for (let i = 1; i < queueNames.length; i += 10) {
-        const chunk = queueNames.slice(i, i + 10)
+    // 確保取得當前播放的歌曲（即第一首）
+    const nowPlaying = `🎵 **Now Playing:**\n${formatTrack(player.queue[0])}`;
+    
+    // 把佇列分割成每10首歌一頁
+    queueChunks = [];
+    for (let i = 1; i < player.queue.length; i += 10) {
+        const chunk = player.queue.slice(i, i + 10)
             .map((song, index) => `${i + index}. ${formatTrack(song)}`)
             .join('\n');
         queueChunks.push(chunk);
     }
 
-    // Send the "Now Playing" message first
+    // 如果之前有舊的佇列消息，刪除它
+    if (lastQueueMessage) {
+        lastQueueMessage.delete().catch(console.error);  // 刪除舊的消息
+    }
+
+    // 發送 "Now Playing" 消息
     channel.send({
         embeds: [new EmbedBuilder().setColor(config.embedColor).setDescription(nowPlaying)]
-    }).catch(console.error);
+    }).then(async (message) => {
+        lastQueueMessage = message;  // 保存這條消息
 
-    // Send each chunk as a separate embed
-    queueChunks.forEach(async (chunk) => {
+        // 顯示當前頁面的歌單
         const embed = new EmbedBuilder()
             .setColor(config.embedColor)
-            .setDescription(`📜 **Queue:**\n${chunk}`);
-        await channel.send({ embeds: [embed] }).catch(console.error);
-    });
+            .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
+        
+        const msg = await channel.send({ embeds: [embed] });
+        
+        // 添加翻頁反應按鈕
+        await msg.react('⬅️');  // 上一頁
+        await msg.react('➡️');  // 下一頁
+
+        const filter = (reaction, user) => {
+            return ['⬅️', '➡️'].includes(reaction.emoji.name) && !user.bot;
+        };
+
+        const collector = msg.createReactionCollector({ filter, time: 60000 });
+
+        collector.on('collect', async (reaction, user) => {
+            if (reaction.emoji.name === '⬅️') {
+                // 如果是上一頁
+                if (currentPage > 0) {
+                    currentPage--;
+                }
+            } else if (reaction.emoji.name === '➡️') {
+                // 如果是下一頁
+                if (currentPage < queueChunks.length - 1) {
+                    currentPage++;
+                }
+            }
+
+            // 更新歌單顯示
+            const updatedEmbed = new EmbedBuilder()
+                .setColor(config.embedColor)
+                .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
+            await msg.edit({ embeds: [updatedEmbed] });
+
+            // 清除之前的反應
+            await reaction.users.remove(user);
+        });
+    }).catch(console.error);
 }
 
 
