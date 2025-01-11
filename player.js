@@ -185,10 +185,18 @@ async function handleInteraction(i, player, channel) {
         case 'showQueue':
             showQueue(channel);
             break;
-        case 'clearQueue':
-            player.queue.clear();
-            await sendEmbed(channel, "🗑️ **Queue has been cleared!**");
-            break;
+case 'clearQueue':
+    // 清空音樂播放器的佇列
+    if (player.queue) {
+        player.queue.clear();
+    }
+
+    // 同步清空 queueNames
+    queueNames = [];
+
+    // 發送嵌入式消息通知用戶
+    await sendEmbed(channel, "🗑️ **Queue has been cleared!**");
+    break;
         case 'stopTrack':
             player.stop();
             player.destroy();
