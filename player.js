@@ -5,6 +5,7 @@ const { Dynamic } = require("musicard");
 const config = require("./config.js");
 const fs = require("fs");
 const path = require("path");
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 function initializePlayer(client) {
     const nodes = config.nodes.map(node => ({
@@ -273,8 +274,6 @@ function disableLoop(player, channel) {
     player.setLoop("none");
     sendEmbed(channel, "❌ **Loop is disabled!**");
 }
-
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 async function showQueue(channel) {
     if (queueNames.length === 0) {
