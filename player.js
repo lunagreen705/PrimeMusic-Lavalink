@@ -184,7 +184,7 @@ async function handleInteraction(i, player, channel) {
             disableLoop(player, channel);
             break;
         case 'showQueue':
-            showQueue(channel);
+            showQueue(channel, player);
             break;
             
 case 'clearQueue':
@@ -278,31 +278,29 @@ function disableLoop(player, channel) {
     sendEmbed(channel, "❌ **Loop is disabled!**");
 }
 
-async function showQueue(channel) {
-    if (queueNames.length === 0) {
+async function showQueue(channel, player) {
+    if (!player || !player.queue || player.queue.length === 0) {
         sendEmbed(channel, "The queue is empty.");
         return;
     }
 
-    const nowPlaying = `🎵 **Now Playing:**\n${formatTrack(queueNames[0])}`;
+    // Get the currently playing song from the player
+    const nowPlaying = player.current ? `🎵 **Now Playing:**\n${formatTrack(player.current)}` : "🎵 **Now Playing:** No song is currently playing.";
+
     const queueChunks = [];
 
     // Split the queue into chunks of 10 songs per embed
-    for (let i = 1; i < queueNames.length; i += 10) {
-        const chunk = queueNames.slice(i, i + 10)
+    for (let i = 1; i < player.queue.length; i += 10) {
+        const chunk = player.queue.slice(i, i + 10)
             .map((song, index) => `${i + index}. ${formatTrack(song)}`)
             .join('\n');
         queueChunks.push(chunk);
     }
 
-    // If the queue is empty after clearing, show empty message
+    // If there is only one page, directly show the queue
     if (queueChunks.length === 0) {
-        const nowPlayingEmbed = new EmbedBuilder()
-            .setColor(config.embedColor)
-            .setDescription(nowPlaying);  // You may want to update it with a message like "No songs in queue"
-        
-        await channel.send({
-            embeds: [nowPlayingEmbed]
+        channel.send({
+            embeds: [new EmbedBuilder().setColor(config.embedColor).setDescription(nowPlaying)]
         }).catch(console.error);
         return;
     }
@@ -369,7 +367,6 @@ async function showQueue(channel) {
         }).catch(console.error);
     });
 }
-
 
 function createActionRow1(disabled) {
     return new ActionRowBuilder()
