@@ -183,7 +183,7 @@ async function handleInteraction(i, player, channel) {
             disableLoop(player, channel);
             break;
         case 'showQueue':
-            showQueue(channel);
+            showQueue(Player, channel);
             break;
         case 'clearQueue':
             player.queue.clear();
@@ -259,15 +259,17 @@ function disableLoop(player, channel) {
     sendEmbed(channel, "❌ **Loop is disabled!**");
 }
 
-async function showQueue(channel) {
+async function showQueue(channel, player) {
     if (queueNames.length === 0) {
         sendEmbed(channel, "The queue is empty.");
         return;
     }
 
-    const nowPlaying = `🎵 **Now Playing:**\n${formatTrack(queueNames[0])}`;
     const queueChunks = [];
-
+    const nowPlayingEmbed = new EmbedBuilder()
+        .setColor(config.embedColor)
+        .setDescription(`🎵 **Now Playing:**\n${formatTrack(queueNames[0])}`);
+    
     // Split the queue into chunks of 10 songs per embed
     for (let i = 1; i < queueNames.length; i += 10) {
         const chunk = queueNames.slice(i, i + 10)
@@ -279,18 +281,13 @@ async function showQueue(channel) {
     // If there is only one page, directly show the queue
     if (queueChunks.length === 0) {
         channel.send({
-            embeds: [new EmbedBuilder().setColor(config.embedColor).setDescription(nowPlaying)]
+            embeds: [nowPlayingEmbed]
         }).catch(console.error);
         return;
     }
 
     let currentPage = 0;
 
-    // Send the "Now Playing" message first
-    const nowPlayingEmbed = new EmbedBuilder()
-        .setColor(config.embedColor)
-        .setDescription(nowPlaying);
-    
     let queueEmbed = new EmbedBuilder()
         .setColor(config.embedColor)
         .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
@@ -335,9 +332,9 @@ async function showQueue(channel) {
             .setColor(config.embedColor)
             .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
 
-        // Update the button states (disable previous on the first page, next on the last page)
-        row.components[0].setDisabled(currentPage === 0); // Disable previous button if on first page
-        row.components[1].setDisabled(currentPage === queueChunks.length - 1); // Disable next button if on last page
+        // Update the button states
+        row.components[0].setDisabled(currentPage === 0);
+        row.components[1].setDisabled(currentPage === queueChunks.length - 1);
 
         // Edit the message to show the updated queue and buttons
         await interaction.update({
@@ -345,32 +342,25 @@ async function showQueue(channel) {
             components: [row]
         }).catch(console.error);
     });
-}
 
-collector.on('end', async () => {
-        row.components.forEach((button) => button.setDisabled(true));
-        await queueMessage.edit({ components: [row] }).catch(console.error);
-    });
-
-    // 監聽播放器事件，實時更新 Now Playing
+    // Listen to the "trackStart" event and update the "Now Playing" section
     player.on('trackStart', async (track) => {
-        try {
-            const updatedNowPlaying = `🎵 **Now Playing:**\n${formatTrack(track)}`;
-            nowPlayingEmbed.setDescription(updatedNowPlaying);
-            await nowPlayingMessage.edit({ embeds: [nowPlayingEmbed] });
-        } catch (err) {
-            console.error("Error updating 'Now Playing':", err);
-        }
+        const updatedNowPlaying = `🎵 **Now Playing:**\n${formatTrack(track)}`;
+        nowPlayingEmbed.setDescription(updatedNowPlaying);
+
+        // Edit the original message to update the "Now Playing" embed
+        await message.edit({
+            embeds: [nowPlayingEmbed, queueEmbed],
+            components: [row]
+        }).catch(console.error);
     });
 
-    player.on('queueEnd', async () => {
-        try {
-            nowPlayingEmbed.setDescription("🎵 **Now Playing:**\nQueue has ended.");
-            await nowPlayingMessage.edit({ embeds: [nowPlayingEmbed] });
-        } catch (err) {
-            console.error("Error updating 'Now Playing' at queue end:", err);
-        }
+    // Handle collector end (disable buttons when the time expires)
+    collector.on('end', () => {
+        row.components.forEach(button => button.setDisabled(true));
+        message.edit({ components: [row] }).catch(console.error);
     });
+}
 
 function createActionRow1(disabled) {
     return new ActionRowBuilder()
