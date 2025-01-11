@@ -371,7 +371,6 @@ collector.on('end', async () => {
             console.error("Error updating 'Now Playing' at queue end:", err);
         }
     });
-}
 
 function createActionRow1(disabled) {
     return new ActionRowBuilder()
