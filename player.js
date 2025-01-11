@@ -183,7 +183,7 @@ async function handleInteraction(i, player, channel) {
             disableLoop(player, channel);
             break;
         case 'showQueue':
-            showQueue(player, channel);
+            showQueue(channel);
             break;
         case 'clearQueue':
             player.queue.clear();
@@ -259,17 +259,15 @@ function disableLoop(player, channel) {
     sendEmbed(channel, "❌ **Loop is disabled!**");
 }
 
-async function showQueue(channel, player) {
+async function showQueue(channel) {
     if (queueNames.length === 0) {
         sendEmbed(channel, "The queue is empty.");
         return;
     }
 
+    const nowPlaying = `🎵 **Now Playing:**\n${formatTrack(queueNames[0])}`;
     const queueChunks = [];
-    const nowPlayingEmbed = new EmbedBuilder()
-        .setColor(config.embedColor)
-        .setDescription(`🎵 **Now Playing:**\n${formatTrack(queueNames[0])}`);
-    
+
     // Split the queue into chunks of 10 songs per embed
     for (let i = 1; i < queueNames.length; i += 10) {
         const chunk = queueNames.slice(i, i + 10)
@@ -278,15 +276,12 @@ async function showQueue(channel, player) {
         queueChunks.push(chunk);
     }
 
-    // If there is only one page, directly show the queue
-    if (queueChunks.length === 0) {
-        channel.send({
-            embeds: [nowPlayingEmbed]
-        }).catch(console.error);
-        return;
-    }
-
     let currentPage = 0;
+
+    // Send the "Now Playing" message first
+    const nowPlayingEmbed = new EmbedBuilder()
+        .setColor(config.embedColor)
+        .setDescription(nowPlaying);
 
     let queueEmbed = new EmbedBuilder()
         .setColor(config.embedColor)
@@ -302,73 +297,76 @@ async function showQueue(channel, player) {
             .setCustomId('next')
             .setLabel('➡️ Next')
             .setStyle(ButtonStyle.Primary)
-            .setDisabled(currentPage === queueChunks.length - 1) // Disable if on the last page
+            .setDisabled(currentPage === queueChunks.length - 1), // Disable if on the last page
+        new ButtonBuilder()
+            .setCustomId('updateQueue')
+            .setLabel('🔄 Update Queue')
+            .setStyle(ButtonStyle.Secondary), // Update queue button
+        new ButtonBuilder()
+            .setCustomId('updateNowPlaying')
+            .setLabel('🔄 Update Now Playing')
+            .setStyle(ButtonStyle.Secondary) // Update Now Playing button
     );
 
-   const message = await channel.send({
-    embeds: [nowPlayingEmbed, queueEmbed],
-    components: [row]
-}).catch(err => {
-    console.error("Error sending the message:", err);
-});
-
-if (!message) {
-    console.log("Message was not sent successfully");
-    return;
-}
+    const message = await channel.send({
+        embeds: [nowPlayingEmbed, queueEmbed],
+        components: [row]
+    }).catch(console.error);
 
     // Create a collector to handle button interactions
     const filter = (interaction) => interaction.isButton() && interaction.user.id === channel.guild.ownerId;
     const collector = message.createMessageComponentCollector({ filter, time: 60000 });
 
-   collector.on('collect', async (interaction) => {
-    try {
-        // 更新頁碼等操作
-        // 更新嵌入消息
-        await interaction.update({
-            embeds: [nowPlayingEmbed, queueEmbed],
-            components: [row]
-        });
-    } catch (err) {
-        console.error("Error updating the interaction:", err);
-    }
-});
+    collector.on('collect', async (interaction) => {
+        if (interaction.customId === 'previous') {
+            // Go to previous page
+            if (currentPage > 0) {
+                currentPage--;
+            }
+        } else if (interaction.customId === 'next') {
+            // Go to next page
+            if (currentPage < queueChunks.length - 1) {
+                currentPage++;
+            }
+        } else if (interaction.customId === 'updateQueue') {
+            // Update the queue embed (reload queue from the latest data)
+            queueEmbed = new EmbedBuilder()
+                .setColor(config.embedColor)
+                .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
+
+            // Edit the message to show the updated queue
+            await interaction.update({
+                embeds: [nowPlayingEmbed, queueEmbed],
+                components: [row]
+            }).catch(console.error);
+            return;
+        } else if (interaction.customId === 'updateNowPlaying') {
+            // Update the "Now Playing" embed (reload the currently playing track)
+            const updatedNowPlaying = `🎵 **Now Playing:**\n${formatTrack(queueNames[0])}`;
+            nowPlayingEmbed.setDescription(updatedNowPlaying);
+
+            // Edit the message to show the updated Now Playing
+            await interaction.update({
+                embeds: [nowPlayingEmbed, queueEmbed],
+                components: [row]
+            }).catch(console.error);
+            return;
+        }
 
         // Update the queue embed with the new page
         queueEmbed = new EmbedBuilder()
             .setColor(config.embedColor)
             .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
 
-        // Update the button states
-        row.components[0].setDisabled(currentPage === 0);
-        row.components[1].setDisabled(currentPage === queueChunks.length - 1);
+        // Update the button states (disable previous on the first page, next on the last page)
+        row.components[0].setDisabled(currentPage === 0); // Disable previous button if on first page
+        row.components[1].setDisabled(currentPage === queueChunks.length - 1); // Disable next button if on last page
 
         // Edit the message to show the updated queue and buttons
-         await interaction.update({
-            embeds: [nowPlayingEmbed, queueEmbed],
-            components: [row]
-        });
-    } catch (err) {
-        console.error("Error updating the interaction:", err);  // 捕獲錯誤
-    }
-});
-
-    // Listen to the "trackStart" event and update the "Now Playing" section
-    player.on('trackStart', async (track) => {
-        const updatedNowPlaying = `🎵 **Now Playing:**\n${formatTrack(track)}`;
-        nowPlayingEmbed.setDescription(updatedNowPlaying);
-
-        // Edit the original message to update the "Now Playing" embed
-        await message.edit({
+        await interaction.update({
             embeds: [nowPlayingEmbed, queueEmbed],
             components: [row]
         }).catch(console.error);
-    });
-
-    // Handle collector end (disable buttons when the time expires)
-    collector.on('end', () => {
-        row.components.forEach(button => button.setDisabled(true));
-        message.edit({ components: [row] }).catch(console.error);
     });
 }
 
