@@ -259,79 +259,79 @@ function disableLoop(player, channel) {
     sendEmbed(channel, "❌ **Loop is disabled!**");
 }
 
-function showQueue(channel) {
-    let currentPage = 0;  // 用來記錄當前頁數
-    let queueChunks = [];  // 存儲分頁佇列
-
-    // 確保 player.queue 已經有歌曲
-    if (!player || !player.queue || player.queue.length === 0) {
+async function showQueue(channel) {
+    if (queueNames.length === 0) {
         sendEmbed(channel, "The queue is empty.");
         return;
     }
 
-    // 確保取得當前播放的歌曲（即第一首）
-    const nowPlaying = `🎵 **Now Playing:**\n${formatTrack(player.queue[0])}`;
-    
-    // 把佇列分割成每10首歌一頁
-    queueChunks = [];
-    for (let i = 1; i < player.queue.length; i += 10) {
-        const chunk = player.queue.slice(i, i + 10)
+    const nowPlaying = `🎵 **Now Playing:**\n${formatTrack(queueNames[0])}`;
+    const queueChunks = [];
+
+    // Split the queue into chunks of 10 songs per embed
+    for (let i = 1; i < queueNames.length; i += 10) {
+        const chunk = queueNames.slice(i, i + 10)
             .map((song, index) => `${i + index}. ${formatTrack(song)}`)
             .join('\n');
         queueChunks.push(chunk);
     }
 
-    // 如果之前有舊的佇列消息，刪除它
-    if (lastQueueMessage) {
-        lastQueueMessage.delete().catch(console.error);  // 刪除舊的消息
+    // If there is only one page, directly show the queue
+    if (queueChunks.length === 0) {
+        channel.send({
+            embeds: [new EmbedBuilder().setColor(config.embedColor).setDescription(nowPlaying)]
+        }).catch(console.error);
+        return;
     }
 
-    // 發送 "Now Playing" 消息
-    channel.send({
-        embeds: [new EmbedBuilder().setColor(config.embedColor).setDescription(nowPlaying)]
-    }).then(async (message) => {
-        lastQueueMessage = message;  // 保存這條消息
+    let currentPage = 0;
 
-        // 顯示當前頁面的歌單
-        const embed = new EmbedBuilder()
+    // Send the "Now Playing" message first
+    const nowPlayingEmbed = new EmbedBuilder()
+        .setColor(config.embedColor)
+        .setDescription(nowPlaying);
+    
+    let queueEmbed = new EmbedBuilder()
+        .setColor(config.embedColor)
+        .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
+
+    const message = await channel.send({
+        embeds: [nowPlayingEmbed, queueEmbed]
+    }).catch(console.error);
+
+    // Add reaction buttons for pagination
+    await message.react('⬅️');  // Previous page
+    await message.react('➡️');  // Next page
+
+    const filter = (reaction, user) => {
+        return ['⬅️', '➡️'].includes(reaction.emoji.name) && !user.bot;
+    };
+
+    const collector = message.createReactionCollector({ filter, time: 60000 });
+
+    collector.on('collect', async (reaction, user) => {
+        if (reaction.emoji.name === '⬅️') {
+            // Go to previous page
+            if (currentPage > 0) {
+                currentPage--;
+            }
+        } else if (reaction.emoji.name === '➡️') {
+            // Go to next page
+            if (currentPage < queueChunks.length - 1) {
+                currentPage++;
+            }
+        }
+
+        // Update the queue embed with the new page
+        queueEmbed = new EmbedBuilder()
             .setColor(config.embedColor)
             .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
-        
-        const msg = await channel.send({ embeds: [embed] });
-        
-        // 添加翻頁反應按鈕
-        await msg.react('⬅️');  // 上一頁
-        await msg.react('➡️');  // 下一頁
 
-        const filter = (reaction, user) => {
-            return ['⬅️', '➡️'].includes(reaction.emoji.name) && !user.bot;
-        };
+        await message.edit({ embeds: [nowPlayingEmbed, queueEmbed] }).catch(console.error);
 
-        const collector = msg.createReactionCollector({ filter, time: 60000 });
-
-        collector.on('collect', async (reaction, user) => {
-            if (reaction.emoji.name === '⬅️') {
-                // 如果是上一頁
-                if (currentPage > 0) {
-                    currentPage--;
-                }
-            } else if (reaction.emoji.name === '➡️') {
-                // 如果是下一頁
-                if (currentPage < queueChunks.length - 1) {
-                    currentPage++;
-                }
-            }
-
-            // 更新歌單顯示
-            const updatedEmbed = new EmbedBuilder()
-                .setColor(config.embedColor)
-                .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
-            await msg.edit({ embeds: [updatedEmbed] });
-
-            // 清除之前的反應
-            await reaction.users.remove(user);
-        });
-    }).catch(console.error);
+        // Remove the user's reaction to prevent multiple reactions from the same user
+        await reaction.users.remove(user).catch(console.error);
+    });
 }
 
 
