@@ -6,7 +6,6 @@ const config = require("./config.js");
 const fs = require("fs");
 const path = require("path");
 
-
 function initializePlayer(client) {
     const nodes = config.nodes.map(node => ({
         name: node.name,
@@ -186,28 +185,10 @@ async function handleInteraction(i, player, channel) {
         case 'showQueue':
             showQueue(channel);
             break;
-            
-case 'clearQueue':
-    if (!player || !player.queue || player.queue.length === 0) {
-        await sendEmbed(channel, "⚠️ No active queue or player.");
-        return;
-    }
-
-    // 保留正在播放的歌曲
-    let nowPlaying = player.queue[0]; 
-
-    // 如果佇列中有多首歌，清空非正在播放的部分
-if (player.queue.length > 1) {
-    player.queue = [player.queue[0]];  // 只保留第一首歌
-}
-            
-    // 發送清空成功的訊息
-    await sendEmbed(
-        channel,
-        `🗑️ **Queue has been cleared!**\n🎵 **Now Playing:** ${formatTrack(nowPlaying)}`
-    );
-    break;
-
+        case 'clearQueue':
+            player.queue.clear();
+            await sendEmbed(channel, "🗑️ **Queue has been cleared!**");
+            break;
         case 'stopTrack':
             player.stop();
             player.destroy();
@@ -278,92 +259,47 @@ function disableLoop(player, channel) {
     sendEmbed(channel, "❌ **Loop is disabled!**");
 }
 
-async function showQueue(channel) {
+function showQueue(channel) {
     if (queueNames.length === 0) {
         sendEmbed(channel, "The queue is empty.");
         return;
     }
 
-    const nowPlaying = 🎵 **Now Playing:**\n${formatTrack(queueNames[0])};
+    const nowPlaying = `🎵 **Now Playing:**\n${formatTrack(queueNames[0])}`;
     const queueChunks = [];
 
     // Split the queue into chunks of 10 songs per embed
     for (let i = 1; i < queueNames.length; i += 10) {
         const chunk = queueNames.slice(i, i + 10)
-            .map((song, index) => ${i + index}. ${formatTrack(song)})
+            .map((song, index) => `${i + index}. ${formatTrack(song)}`)
             .join('\n');
         queueChunks.push(chunk);
     }
 
-    // If there is only one page, directly show the queue
-    if (queueChunks.length === 0) {
-        channel.send({
-            embeds: [new EmbedBuilder().setColor(config.embedColor).setDescription(nowPlaying)]
-        }).catch(console.error);
-        return;
-    }
-
-    let currentPage = 0;
-
     // Send the "Now Playing" message first
-    const nowPlayingEmbed = new EmbedBuilder()
-        .setColor(config.embedColor)
-        .setDescription(nowPlaying);
-    
-    let queueEmbed = new EmbedBuilder()
-        .setColor(config.embedColor)
-        .setDescription(📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]});
-
-    const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId('previous')
-            .setLabel('⬅️ Previous')
-            .setStyle(ButtonStyle.Primary)
-            .setDisabled(currentPage === 0), // Disable if on the first page
-        new ButtonBuilder()
-            .setCustomId('next')
-            .setLabel('➡️ Next')
-            .setStyle(ButtonStyle.Primary)
-            .setDisabled(currentPage === queueChunks.length - 1) // Disable if on the last page
-    );
-
-    const message = await channel.send({
-        embeds: [nowPlayingEmbed, queueEmbed],
-        components: [row]
+    channel.send({
+        embeds: [new EmbedBuilder().setColor(config.embedColor).setDescription(nowPlaying)]
     }).catch(console.error);
 
-    // Create a collector to handle button interactions
-    const filter = (interaction) => interaction.isButton();
-    const collector = message.createMessageComponentCollector({ filter, time: 60000 });
-
-    collector.on('collect', async (interaction) => {
-        if (interaction.customId === 'previous') {
-            // Go to previous page
-            if (currentPage > 0) {
-                currentPage--;
-            }
-        } else if (interaction.customId === 'next') {
-            // Go to next page
-            if (currentPage < queueChunks.length - 1) {
-                currentPage++;
-            }
-        }
-
-        // Update the queue embed with the new page
-        queueEmbed = new EmbedBuilder()
+    // Send each chunk as a separate embed
+    queueChunks.forEach(async (chunk) => {
+        const embed = new EmbedBuilder()
             .setColor(config.embedColor)
-            .setDescription(📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]});
-
-        // Update the button states (disable previous on the first page, next on the last page)
-        row.components[0].setDisabled(currentPage === 0); // Disable previous button if on first page
-        row.components[1].setDisabled(currentPage === queueChunks.length - 1); // Disable next button if on last page
-
-        // Edit the message to show the updated queue and buttons
-        await interaction.update({
-            embeds: [nowPlayingEmbed, queueEmbed],
-            components: [row]
-        }).catch(console.error);
+            .setDescription(`📜 **Queue:**\n${chunk}`);
+        await channel.send({ embeds: [embed] }).catch(console.error);
     });
+}
+
+
+function createActionRow1(disabled) {
+    return new ActionRowBuilder()
+        .addComponents(
+            new ButtonBuilder().setCustomId("loopToggle").setEmoji('🔁').setStyle(ButtonStyle.Secondary).setDisabled(disabled),
+            new ButtonBuilder().setCustomId("disableLoop").setEmoji('❌').setStyle(ButtonStyle.Secondary).setDisabled(disabled),
+            new ButtonBuilder().setCustomId("skipTrack").setEmoji('⏭️').setStyle(ButtonStyle.Secondary).setDisabled(disabled),
+            new ButtonBuilder().setCustomId("showQueue").setEmoji('📜').setStyle(ButtonStyle.Secondary).setDisabled(disabled),
+            new ButtonBuilder().setCustomId("clearQueue").setEmoji('🗑️').setStyle(ButtonStyle.Secondary).setDisabled(disabled)
+        );
 }
 
 function createActionRow2(disabled) {
