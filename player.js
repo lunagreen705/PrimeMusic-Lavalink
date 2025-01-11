@@ -183,7 +183,7 @@ async function handleInteraction(i, player, channel) {
             disableLoop(player, channel);
             break;
         case 'showQueue':
-            showQueue(Player, channel);
+            showQueue(player, channel);
             break;
         case 'clearQueue':
             player.queue.clear();
