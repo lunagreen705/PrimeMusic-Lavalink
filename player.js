@@ -259,12 +259,6 @@ function disableLoop(player, channel) {
     sendEmbed(channel, "❌ **Loop is disabled!**");
 }
 
-// 假設這是你的播放器和其他依賴對象
-const player = getPlayer(); // 替換為你的播放器實例
-const config = { embedColor: '#00ff00' }; // 嵌入顏色配置
-const queueNames = ['Song 1', 'Song 2', 'Song 3']; // 假設的隊列數據
-const channel = getTextChannel(); // 替換為目標頻道的實例
-
 async function showQueue(channel) {
     if (queueNames.length === 0) {
         await channel.send("The queue is empty.");
