@@ -197,13 +197,10 @@ case 'clearQueue':
     let nowPlaying = player.queue[0]; 
 
     // 如果佇列中有多首歌，清空非正在播放的部分
-    if (player.queue.length > 1) {
-        player.queue.remove(1, player.queue.length - 1); // 清除非正在播放的歌曲
-    }
-
-    // 重新同步 queueNames
-    queueNames = [nowPlaying]; // 這裡是重新賦值，保證只保留正在播放的歌曲
-
+if (player.queue.length > 1) {
+    player.queue = [player.queue[0]];  // 只保留第一首歌
+}
+            
     // 發送清空成功的訊息
     await sendEmbed(
         channel,
