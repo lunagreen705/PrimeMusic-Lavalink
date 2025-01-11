@@ -184,7 +184,7 @@ async function handleInteraction(i, player, channel) {
             disableLoop(player, channel);
             break;
         case 'showQueue':
-            showQueue(channel, player);
+            showQueue(channel);
             break;
             
 case 'clearQueue':
@@ -278,21 +278,19 @@ function disableLoop(player, channel) {
     sendEmbed(channel, "❌ **Loop is disabled!**");
 }
 
-async function showQueue(channel, player) {
-    if (!player || !player.queue || player.queue.length === 0) {
+async function showQueue(channel) {
+    if (queueNames.length === 0) {
         sendEmbed(channel, "The queue is empty.");
         return;
     }
 
-    // Get the currently playing song from the player
-    const nowPlaying = player.current ? `🎵 **Now Playing:**\n${formatTrack(player.current)}` : "🎵 **Now Playing:** No song is currently playing.";
-
+    const nowPlaying = 🎵 **Now Playing:**\n${formatTrack(queueNames[0])};
     const queueChunks = [];
 
     // Split the queue into chunks of 10 songs per embed
-    for (let i = 1; i < player.queue.length; i += 10) {
-        const chunk = player.queue.slice(i, i + 10)
-            .map((song, index) => `${i + index}. ${formatTrack(song)}`)
+    for (let i = 1; i < queueNames.length; i += 10) {
+        const chunk = queueNames.slice(i, i + 10)
+            .map((song, index) => ${i + index}. ${formatTrack(song)})
             .join('\n');
         queueChunks.push(chunk);
     }
@@ -314,7 +312,7 @@ async function showQueue(channel, player) {
     
     let queueEmbed = new EmbedBuilder()
         .setColor(config.embedColor)
-        .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
+        .setDescription(📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]});
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -354,7 +352,7 @@ async function showQueue(channel, player) {
         // Update the queue embed with the new page
         queueEmbed = new EmbedBuilder()
             .setColor(config.embedColor)
-            .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
+            .setDescription(📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]});
 
         // Update the button states (disable previous on the first page, next on the last page)
         row.components[0].setDisabled(currentPage === 0); // Disable previous button if on first page
@@ -366,17 +364,6 @@ async function showQueue(channel, player) {
             components: [row]
         }).catch(console.error);
     });
-}
-
-function createActionRow1(disabled) {
-    return new ActionRowBuilder()
-        .addComponents(
-            new ButtonBuilder().setCustomId("loopToggle").setEmoji('🔁').setStyle(ButtonStyle.Secondary).setDisabled(disabled),
-            new ButtonBuilder().setCustomId("disableLoop").setEmoji('❌').setStyle(ButtonStyle.Secondary).setDisabled(disabled),
-            new ButtonBuilder().setCustomId("skipTrack").setEmoji('⏭️').setStyle(ButtonStyle.Secondary).setDisabled(disabled),
-            new ButtonBuilder().setCustomId("showQueue").setEmoji('📜').setStyle(ButtonStyle.Secondary).setDisabled(disabled),
-            new ButtonBuilder().setCustomId("clearQueue").setEmoji('🗑️').setStyle(ButtonStyle.Secondary).setDisabled(disabled)
-        );
 }
 
 function createActionRow2(disabled) {
