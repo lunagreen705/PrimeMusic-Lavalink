@@ -278,28 +278,31 @@ function disableLoop(player, channel) {
     sendEmbed(channel, "❌ **Loop is disabled!**");
 }
 
-async function showQueue(channel, player) {
-    if (!player.queue || player.queue.length === 0) {
-        sendEmbed(channel, "⚠️ No active queue");
+async function showQueue(channel) {
+    if (queueNames.length === 0) {
+        sendEmbed(channel, "The queue is empty.");
         return;
     }
 
-    // 取得正在播放的歌曲
-    const nowPlaying = `🎵 **Now Playing:**\n${formatTrack(player.queue[0])}`;
+    const nowPlaying = `🎵 **Now Playing:**\n${formatTrack(queueNames[0])}`;
     const queueChunks = [];
 
     // Split the queue into chunks of 10 songs per embed
-    for (let i = 1; i < player.queue.length; i += 10) {
-        const chunk = player.queue.slice(i, i + 10)
+    for (let i = 1; i < queueNames.length; i += 10) {
+        const chunk = queueNames.slice(i, i + 10)
             .map((song, index) => `${i + index}. ${formatTrack(song)}`)
             .join('\n');
         queueChunks.push(chunk);
     }
 
-    // If there is only one page, directly show the queue
+    // If the queue is empty after clearing, show empty message
     if (queueChunks.length === 0) {
-        channel.send({
-            embeds: [new EmbedBuilder().setColor(config.embedColor).setDescription(nowPlaying)]
+        const nowPlayingEmbed = new EmbedBuilder()
+            .setColor(config.embedColor)
+            .setDescription(nowPlaying);  // You may want to update it with a message like "No songs in queue"
+        
+        await channel.send({
+            embeds: [nowPlayingEmbed]
         }).catch(console.error);
         return;
     }
@@ -310,7 +313,7 @@ async function showQueue(channel, player) {
     const nowPlayingEmbed = new EmbedBuilder()
         .setColor(config.embedColor)
         .setDescription(nowPlaying);
-
+    
     let queueEmbed = new EmbedBuilder()
         .setColor(config.embedColor)
         .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
