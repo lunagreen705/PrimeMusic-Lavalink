@@ -259,8 +259,6 @@ function disableLoop(player, channel) {
     sendEmbed(channel, "❌ **Loop is disabled!**");
 }
 
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-
 // 假設這是你的播放器和其他依賴對象
 const player = getPlayer(); // 替換為你的播放器實例
 const config = { embedColor: '#00ff00' }; // 嵌入顏色配置
