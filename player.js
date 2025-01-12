@@ -306,28 +306,22 @@ function adjustVolume(player, channel, amount) {
     }
 }
 function formatTrack(track) {
+    if (!track) return "Unknown Song"; // 處理空值
     if (typeof track === 'string') {
-        return track; // 已格式化好的字串，直接返回
+        const match = track.match(/\[(.*?) - (.*?)\]\((.*?)\)/);
+        if (match) {
+            const [, title, author, uri] = match;
+            return `[${title} - ${author}](${uri})`;
+        }
+        return track;
+    } 
+    // 如果 track 是物件，返回一個預設格式
+    if (typeof track === 'object') {
+        return `${track.title || "Unknown Title"} by ${track.author || "Unknown Artist"}`;
     }
-    if (track && typeof track === 'object') {
-        const title = track.title || "Unknown Title";
-        const artist = track.artist || "Unknown Artist";
-        const duration = track.duration || "Unknown Duration";
-        return `${title} by ${artist} (${duration})`;
-    }
-    return "Unknown Song"; // 無效輸入
+    return "Unknown Song";
 }
-    
- 
-    const match = track.match(/\[(.*?) - (.*?)\]\((.*?)\)/);
-    if (match) {
-        const [, title, author, uri] = match;
-        return `[${title} - ${author}](${uri})`;
-    }
-    
-  
-    return track;
-}
+
 
 
 function toggleLoop(player, channel) {
