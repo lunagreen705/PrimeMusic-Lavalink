@@ -182,9 +182,9 @@ async function handleInteraction(i, player, channel) {
         case 'disableLoop':
             disableLoop(player, channel);
             break;
-     case 'showQueue':
-            showQueue(channel);
-            break;
+    case 'showQueue':
+    showQueue(interaction);
+    break;
         case 'clearQueue':
             player.queue.clear();
             await sendEmbed(channel, "🗑️ **Queue has been cleared!**");
