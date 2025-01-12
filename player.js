@@ -183,8 +183,17 @@ async function handleInteraction(i, player, channel) {
             disableLoop(player, channel);
             break;
         case 'showQueue':
-            showQueue(channel);
-            break;
+                    if (!player || !player.queue.length) {
+                        return interaction.reply({ content: 'The queue is empty.', ephemeral: true });
+                    }
+                    const queueEmbed = new EmbedBuilder()
+                        .setTitle('Current Music Queue')
+                        .setColor('#00FF00')
+                        .setDescription(
+                            player.queue.map((track, index) => `${index + 1}. **${track.info.title}**`).join('\n')
+                        );
+                    await interaction.reply({ embeds: [queueEmbed], ephemeral: true });
+                    break;
         case 'clearQueue':
             player.queue.clear();
             await sendEmbed(channel, "🗑️ **Queue has been cleared!**");
