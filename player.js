@@ -275,13 +275,14 @@ if (!player || !player.queue.length) {
     }
 
     // If there is only one page, directly show the queue
-    if (queueChunks.length === 0) {
-        channel.send({
-            .setColor(config.embedColor)
-            .setDescription("no queue now")
-        }).catch(console.error);
-        return;
-    }
+  if (queueChunks.length === 0) {
+    const noQueueEmbed = new EmbedBuilder()
+        .setColor(config.embedColor) // 設置顏色
+        .setDescription("No queue now."); // 設置描述
+
+    channel.send({ embeds: [noQueueEmbed] }).catch(console.error); // 發送嵌入
+    return;
+}
 
     const currentPage = 0;
     
