@@ -188,8 +188,6 @@ async function handleInteraction(i, player, channel) {
         return;
     }
 
-    const queueChunks = [];
-
 // 創建一個新的變數來保存過濾後的 queue
 const filteredQueueNames = queueNames.filter(song => !song.played);
 
