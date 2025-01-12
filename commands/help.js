@@ -33,21 +33,20 @@ module.exports = {
 
       const helpDescription = `
 \`\`\`css
-Welcome to ${botName}!
+這裡是 ${botName}!
 
-Your ultimate music companion on Discord. Here are the available commands:
+為你的音樂添上些許糾紛
 
-[ /play    ] - Start playing the songs.
-[ /pause   ] - Pause the current song.
-[ /resume  ] - Resume the current song.
-[ /lyrics  ] - Displays the lyrics of a song.
-[ /skip    ] - Skip the current song.
-[ /stop    ] - Destroys the music player.
-[ /np      ] - Shows now playing song.
-[ /volume  ] - Sets the volume of the player.
-[ /ping    ] - Check bot latency.
-[ /support ] - Shows support server info.
-[ /help    ] - Display this help menu.
+[ /play    ] - 播放音樂
+[ /pause   ] - 暫停播放
+[ /resume  ] - 恢復播放
+[ /lyrics  ] - 歌詞顯示
+[ /skip    ] - 跳過歌曲
+[ /stop    ] - 退出播放
+[ /np      ] - 顯示當前歌曲
+[ /volume  ] - 調整音量
+[ /ping    ] - 檢查ping值
+[ /help    ] - 顯示幫助
 \`\`\`
       `;
 
