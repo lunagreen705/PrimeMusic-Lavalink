@@ -259,8 +259,6 @@ function disableLoop(player, channel) {
     sendEmbed(channel, "❌ **Loop is disabled!**");
 }
 
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-
 async function showQueue(channel) {
     if (queueNames.length === 0) {
         sendEmbed(channel, "The queue is empty.");
