@@ -39,11 +39,11 @@ module.exports = {
   nodes: [
     {
         name: "Server",
-       identifier: "Koi Node V4",
-        host: "lavav4.prplmoe.me",
+       identifier: "Public Lavalink v4 NonSSL",
+        host: "lava-v4.ajieblogs.eu.org",
         port: 1118,
-        password: "prplmoe.me",
-        reconnectTimeout: 5000,
+        password: "https://dsc.gg/ajidevserver",
+        reconnectTimeout: 80,
         reconnectTries: Infinity,
         secure: false
     },
