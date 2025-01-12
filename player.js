@@ -165,7 +165,7 @@ function setupCollector(client, player, channel, message) {
 
     collector.on('end', () => {
         console.log("Collector stopped.");
-    });
+    }); 
 
     return collector;
 }
@@ -254,9 +254,8 @@ async function handleInteraction(i, player, channel) {
             embeds: [queueEmbed],
             components: [row]
         }).catch(console.error);
-    });
-}
-break;
+        });
+        break;
         case 'clearQueue':
             player.queue.clear();
             await sendEmbed(channel, "🗑️ **Queue has been cleared!**");
