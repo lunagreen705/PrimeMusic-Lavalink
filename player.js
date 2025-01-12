@@ -1,6 +1,6 @@
 const { Riffy } = require("riffy");
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require("discord.js");
-const { player, requesters } = require("./commands/play");
+const { queueNames, requesters } = require("./commands/play");
 const { Dynamic } = require("musicard");
 const config = require("./config.js");
 const fs = require("fs");
@@ -191,8 +191,8 @@ async function handleInteraction(i, player, channel) {
     const queueChunks = [];
 
     // Split the queue into chunks of 10 songs per embed
-    for (let i = 0; i < player.queue.length; i += 10) {
-        const chunk = player.queue.slice(i, i + 10)
+    for (let i = 0; i < queueNames.length; i += 10) {
+        const chunk = queueNames.slice(i, i + 10)
             .map((song, index) => `${i + index + 1}. ${formatTrack(song)}`)
             .join('\n');
         queueChunks.push(chunk);
