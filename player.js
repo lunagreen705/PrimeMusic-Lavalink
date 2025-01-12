@@ -306,7 +306,17 @@ function adjustVolume(player, channel, amount) {
     }
 }
 function formatTrack(track) {
-    if (!track || typeof track !== 'string') return track;
+    if (typeof track === 'string') {
+        return track; // 已格式化好的字串，直接返回
+    }
+    if (track && typeof track === 'object') {
+        const title = track.title || "Unknown Title";
+        const artist = track.artist || "Unknown Artist";
+        const duration = track.duration || "Unknown Duration";
+        return `${title} by ${artist} (${duration})`;
+    }
+    return "Unknown Song"; // 無效輸入
+}
     
  
     const match = track.match(/\[(.*?) - (.*?)\]\((.*?)\)/);
