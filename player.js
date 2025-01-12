@@ -259,34 +259,28 @@ function disableLoop(player, channel) {
     sendEmbed(channel, "❌ **Loop is disabled!**");
 }
 
-async function showQueue(player, channel) {
-if (!player || !player.queue.length) {
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+
+async function showQueue(channel) {
+    if (queueNames.length === 0) {
         sendEmbed(channel, "The queue is empty.");
         return;
     }
+
     const queueChunks = [];
 
     // Split the queue into chunks of 10 songs per embed
-    for (let i = 1; i < player.queue.length; i += 10) {
-        const chunk = player.queue.slice(i, i + 10)
-            .map((song, index) => `${i + index}. ${formatTrack(song)}`)
+    for (let i = 0; i < queueNames.length; i += 10) {
+        const chunk = queueNames.slice(i, i + 10)
+            .map((song, index) => `${i + index + 1}. ${formatTrack(song)}`)
             .join('\n');
         queueChunks.push(chunk);
     }
 
-    // If there is only one page, directly show the queue
-  if (queueChunks.length === 0) {
-    const noQueueEmbed = new EmbedBuilder()
-        .setColor(config.embedColor) // 設置顏色
-        .setDescription("No queue now."); // 設置描述
+    let currentPage = 0;
 
-    channel.send({ embeds: [noQueueEmbed] }).catch(console.error); // 發送嵌入
-    return;
-}
-
-    const currentPage = 0;
-    
-    const queueEmbed = new EmbedBuilder()
+    // Create the initial queue embed
+    let queueEmbed = new EmbedBuilder()
         .setColor(config.embedColor)
         .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
 
@@ -331,17 +325,16 @@ if (!player || !player.queue.length) {
             .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
 
         // Update the button states (disable previous on the first page, next on the last page)
-        row.components[0].setDisabled(currentPage === 0); // Disable previous button if on first page
-        row.components[1].setDisabled(currentPage === queueChunks.length - 1); // Disable next button if on last page
+        row.components[0].setDisabled(currentPage === 0);
+        row.components[1].setDisabled(currentPage === queueChunks.length - 1);
 
         // Edit the message to show the updated queue and buttons
         await interaction.update({
-            embeds: [nowPlayingEmbed, queueEmbed],
+            embeds: [queueEmbed],
             components: [row]
         }).catch(console.error);
     });
 }
-
 
 function createActionRow1(disabled) {
     return new ActionRowBuilder()
