@@ -183,7 +183,7 @@ async function handleInteraction(i, player, channel) {
             disableLoop(player, channel);
             break;
     case 'showQueue':
-    showQueue(interaction);
+    showQueue(channel);
     break;
         case 'clearQueue':
             player.queue.clear();
@@ -259,21 +259,19 @@ function disableLoop(player, channel) {
     sendEmbed(channel, "❌ **Loop is disabled!**");
 }
 
-async function showQueue(interaction) {
-    // 获取 player 对象
-    const player = client.riffy.players.get(interaction.guildId);
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
-    // 检查 player 和队列是否存在
-    if (!player || !player.queue || player.queue.length === 0) {
-        await interaction.reply({ content: "The queue is empty.", ephemeral: true });
+async function showQueue(channel) {
+    if (queueNames.length === 0) {
+        sendEmbed(channel, "The queue is empty.");
         return;
     }
 
     const queueChunks = [];
 
-    // 将队列分成每页 10 首歌曲
-    for (let i = 0; i < player.queue.length; i += 10) {
-        const chunk = player.queue.slice(i, i + 10)
+    // Split the queue into chunks of 10 songs per embed
+    for (let i = 0; i < queueNames.length; i += 10) {
+        const chunk = queueNames.slice(i, i + 10)
             .map((song, index) => `${i + index + 1}. ${formatTrack(song)}`)
             .join('\n');
         queueChunks.push(chunk);
@@ -281,10 +279,9 @@ async function showQueue(interaction) {
 
     let currentPage = 0;
 
-    // 初始化队列嵌入
+    // Create the initial queue embed
     let queueEmbed = new EmbedBuilder()
-        .setColor('#7289DA') // 设置嵌入颜色
-        .setTitle("🎶 Current Queue")
+        .setColor(config.embedColor)
         .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
 
     const row = new ActionRowBuilder().addComponents(
@@ -292,51 +289,50 @@ async function showQueue(interaction) {
             .setCustomId('previous')
             .setLabel('⬅️ Previous')
             .setStyle(ButtonStyle.Primary)
-            .setDisabled(currentPage === 0),
+            .setDisabled(currentPage === 0), // Disable if on the first page
         new ButtonBuilder()
             .setCustomId('next')
             .setLabel('➡️ Next')
             .setStyle(ButtonStyle.Primary)
-            .setDisabled(currentPage === queueChunks.length - 1)
+            .setDisabled(currentPage === queueChunks.length - 1) // Disable if on the last page
     );
 
-    const message = await interaction.reply({
+    const message = await channel.send({
         embeds: [queueEmbed],
-        components: [row],
-        fetchReply: true,
-    });
+        components: [row]
+    }).catch(console.error);
 
-    // 按钮交互处理器
-    const collector = message.createMessageComponentCollector({ time: 60000 });
+    // Create a collector to handle button interactions
+    const filter = (interaction) => interaction.isButton() && interaction.user.id === channel.guild.ownerId;
+    const collector = message.createMessageComponentCollector({ filter, time: 60000 });
 
-    collector.on('collect', async (buttonInteraction) => {
-        if (buttonInteraction.user.id !== interaction.user.id) {
-            await buttonInteraction.reply({ content: "You cannot interact with this queue.", ephemeral: true });
-            return;
+    collector.on('collect', async (interaction) => {
+        if (interaction.customId === 'previous') {
+            // Go to previous page
+            if (currentPage > 0) {
+                currentPage--;
+            }
+        } else if (interaction.customId === 'next') {
+            // Go to next page
+            if (currentPage < queueChunks.length - 1) {
+                currentPage++;
+            }
         }
 
-        // 根据按钮 ID 更新当前页
-        if (buttonInteraction.customId === 'previous' && currentPage > 0) {
-            currentPage--;
-        } else if (buttonInteraction.customId === 'next' && currentPage < queueChunks.length - 1) {
-            currentPage++;
-        }
+        // Update the queue embed with the new page
+        queueEmbed = new EmbedBuilder()
+            .setColor(config.embedColor)
+            .setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
 
-        // 更新队列嵌入和按钮状态
-        queueEmbed.setDescription(`📜 **Queue (Page ${currentPage + 1}):**\n${queueChunks[currentPage]}`);
+        // Update the button states (disable previous on the first page, next on the last page)
         row.components[0].setDisabled(currentPage === 0);
         row.components[1].setDisabled(currentPage === queueChunks.length - 1);
 
-        await buttonInteraction.update({
+        // Edit the message to show the updated queue and buttons
+        await interaction.update({
             embeds: [queueEmbed],
-            components: [row],
-        });
-    });
-
-    // 当交互过期时禁用按钮
-    collector.on('end', () => {
-        row.components.forEach((button) => button.setDisabled(true));
-        message.edit({ components: [row] }).catch(console.error);
+            components: [row]
+        }).catch(console.error);
     });
 }
 
