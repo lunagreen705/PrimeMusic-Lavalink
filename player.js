@@ -1,6 +1,6 @@
 const { Riffy } = require("riffy");
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } = require("discord.js");
-const { player.queue, requesters } = require("./commands/play");
+const { player, requesters } = require("./commands/play");
 const { Dynamic } = require("musicard");
 const config = require("./config.js");
 const fs = require("fs");
