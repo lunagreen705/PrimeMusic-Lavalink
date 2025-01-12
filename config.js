@@ -41,9 +41,9 @@ module.exports = {
         name: "Server",
        identifier: "Public Lavalink v4 NonSSL",
         host: "lava-v4.ajieblogs.eu.org",
-        port: 1118,
+        port: 80,
         password: "https://dsc.gg/ajidevserver",
-        reconnectTimeout: 80,
+        reconnectTimeout: 5000,
         reconnectTries: Infinity,
         secure: false
     },
