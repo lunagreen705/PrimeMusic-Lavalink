@@ -189,12 +189,13 @@ async function handleInteraction(i, player, channel) {
     }
 
 // 創建一個新的變數來保存過濾後的 queue
-const filteredQueueNames = queueNames.filter(song => !song.played);
+const filteredQueue = queueNames.filter(song => song.played !== true);
+
 
 // 接下來使用 filteredQueueNames 來顯示隊列
 const queueChunks = [];
-for (let i = 0; i < filteredQueueNames.length; i += 10) {
-    const chunk = filteredQueueNames.slice(i, i + 10)
+for (let i = 0; i < filteredQueue.length; i += 10) {
+    const chunk = filteredQueue.slice(i, i + 10)
         .map((song, index) => `${i + index + 1}. ${formatTrack(song)}`)
         .join('\n');
     queueChunks.push(chunk);
